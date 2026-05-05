@@ -1,8 +1,8 @@
 #include "sqlite3.h"
-#include "pthread.h"
-#include "common.h"
+
 #include "cJSON.h"
 #include <stdlib.h>
+#include <time.h>
 #define MAX_INPUT_LOG_COUNT 50
 #define MAX_OUTPUT_LOG_COUNT 100
 typedef struct{
@@ -34,7 +34,7 @@ static void log_init(void)
     pthread_mutex_init( log_data_buf.lock_output, NULL);
     pthread_cond_init( log_data_buf.cond_output, NULL);
 } 
-static log_release(void)
+static void log_deinit(void)
 {
     for(int i = 0; i < MAX_INPUT_LOG_COUNT; i++){
         free(log_data_buf.log_msg);
@@ -43,6 +43,11 @@ static log_release(void)
     pthread_cond_destroy( log_data_buf.cond_input, NULL);
     pthread_mutex_destroy( log_data_buf.lock_output, NULL);
     pthread_cond_destroy( log_data_buf.cond_output, NULL);
+}
+void log_write(/*由等级、时间、源模块、内容组成*/
+                LOG_LEVEL level, time_t time, Module_ID_e src_module, char * data)
+{
+    /*调用sql接口*/
 }
 void export_logs_on_demand(int count)
 {

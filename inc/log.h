@@ -1,6 +1,6 @@
 #ifndef __LOG_H
 #define __LOG_H
-
+#include "common.h"
 typedef enum{
     DEBUG = 0,//调试信息
     INFO ,//程序运行信息
@@ -11,7 +11,7 @@ typedef enum{
 typedef struct{
     uint32_t timestamp;
     LOG_LEVEL level;
-    char module_name[16];//模块名字
+    Module_ID_e module;
     char content[64];//日志内容
 }Log_Msg_t;
 

@@ -1,8 +1,6 @@
 #ifndef __COMMON_H
 #define __COMMON_H
 
-//#include <cstdint>
-//#include <ctime>
 #include <stdbool.h>
 #include <pthread.h>
 #include <stdint.h>
