@@ -82,7 +82,7 @@ void* storage_video_thread(void* arg)
     while(running){
         pthread_mutex_lock(&storage_data.lock);
         while(!storage_data.data_ready && running){
-            pthread_cond_wait(&storage_data.cond);
+            pthread_cond_wait(&storage_data.cond, &storage_data.lock);
         }
         if(!running){
             pthread_mutex_unlock(&storage_data.lock);

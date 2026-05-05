@@ -30,6 +30,10 @@ typedef enum{
     MSG_TYPE_LOG,       //日志消息
     MSG_TYPE_COMMAND    //命令消息
 }Msg_Type_e;//消息类型枚举类型定义，根据实际需求设计
+typedef enum{
+    SAFE = 0,
+    MOVED
+}Alarm_Level;
 typedef struct{
     Module_ID_e src_module; //消息来源模块
     Module_ID_e dst_module; //消息目标模块
@@ -54,7 +58,7 @@ typedef struct{
 }Log_Data; //日志数据结构体定义
 
 typedef struct{
-
+    Alarm_Level status;
 }Alarm_Data; //告警数据结构体定义
 /*声明一个待发送数据缓冲区*/
 /*
