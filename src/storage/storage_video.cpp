@@ -9,6 +9,7 @@
 //#include "ffmpeg_muxer.h"
 
 #include <stdint.h>
+#include <time.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <cstring>
@@ -95,7 +96,9 @@ void* storage_video_thread(void* arg)
         if(should_save){
             if(!is_recording){
                 char filename[64];
-                sprintf(filename, "/mnt/sdcard/record_%ld.dat", (long)storage_data.read_ts_ptr[0]);
+                time_t raw_time = storage_data.read_ts_ptr[0];
+                struct tm *timeinfo = localtime(&raw_time);
+                strftime(filename, sizeof(filename), "/mnt/sdcard/rec_%Y%m%d_%H%M%S.dat", timeinfo);
                 fp = fopen(filename, "wb");
                 if(fp){
                     is_recording = true;
