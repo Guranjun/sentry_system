@@ -5,9 +5,9 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <time.h>
-#include "log.h"
-#define FRAME_HIGH 480
-#define FRAME_WIDTH 640
+//#include "log.h"
+#define FRAME_HIGH 240
+#define FRAME_WIDTH 320
 #define V4L2_BUF_COUNT 2
 #ifdef __cplusplus
 extern "C"{
@@ -120,7 +120,11 @@ void* msg_deliver_thread(void* arg);
 void V4L2_msg_release_handler(Common_Msg_t* msg);
 /*udp发送线程相关数据结构和函数声明*/
 void udp_msg_handler(Common_Msg_t* msg);
-
+/*存储线程相关数据结构和函数声明*/
+void storage_msg_handler(Common_Msg_t* msg);
+/*告警线程相关数据结构和函数声明*/
+void alarm_msg_release_handler(Common_Msg_t* msg);
+void alarm_msg_handler(Common_Msg_t* msg);
 #ifdef __cplusplus
 }
 #endif

@@ -95,11 +95,14 @@ void* storage_video_thread(void* arg)
         if(should_save){
             if(!is_recording){
                 char filename[64];
-                sprintf(filename, "../mnt/sdcard/record_%ld.dat",(*storage_data.read_ts_ptr)[0]);
+                sprintf(filename, "/mnt/sdcard/record_%ld.dat", (long)storage_data.read_ts_ptr[0]);
                 fp = fopen(filename, "wb");
                 if(fp){
                     is_recording = true;
                     //写个日志
+                }
+                else{
+                    perror("Failed To Open File:");
                 }
             }
             if(fp){
@@ -137,19 +140,20 @@ void* storage_video_thread(void* arg)
 }
 
 
-void storage_msg_handler(Common_Msg_t msg)
+void storage_msg_handler(Common_Msg_t* msg)
 {
     switch(msg->msg_type){
-        case MSG_TYPE_IMAGE:
+        case MSG_TYPE_IMAGE:{
             //处理图像数据消息
             Image_Data* img_data = (Image_Data*)msg->data;
+            pthread_mutex_lock(&storage_data.lock);
             int idx = storage_data.write_idx;
             auto& target_vec = (*storage_data.write_ptr)[idx];
             target_vec.assign((uint8_t*)img_data->data, (uint8_t*)img_data->data + img_data->len);
             storage_data.write_lens_ptr[idx] = img_data->len;
             storage_data.write_ts_ptr[idx] = img_data->timestamps;
             storage_data.write_idx++;
-            pthread_mutex_lock(&storage_data.lock);
+            
             //存数据
             if(storage_data.write_idx >= MAXSIZE){
                 if(storage_data.data_ready){
@@ -165,11 +169,12 @@ void storage_msg_handler(Common_Msg_t msg)
                     storage_data.write_idx = 0;
                     pthread_cond_signal(&storage_data.cond);
                 }
-                pthread_mutex_unlock(&storage_data.lock);
+                
             }
-            
+            pthread_mutex_unlock(&storage_data.lock);
             break;
-        case MSG_TYPE_ALARM:
+        }
+        case MSG_TYPE_ALARM:{
             //处理告警数据消息
             //如果是movedetected就标记movedetect为true  不然标记为false
             Alarm_Data* alarm_data = (Alarm_Data*)msg->data;
@@ -184,6 +189,7 @@ void storage_msg_handler(Common_Msg_t msg)
             }
             pthread_mutex_unlock(&storage_data.lock);
             break;
+        }
         case MSG_TYPE_LOG:
             //处理日志数据消息
             break;
@@ -194,6 +200,12 @@ void storage_msg_handler(Common_Msg_t msg)
             break;
     }
 
+}
+void storage_thread_wakeup(void)
+{
+    pthread_mutex_lock(&storage_data.lock);
+    pthread_cond_signal(&storage_data.cond);
+    pthread_mutex_unlock(&storage_data.lock);
 }
 #ifdef __cplusplus
 }

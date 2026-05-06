@@ -156,6 +156,7 @@ void *camera_capture_thread(void *arg)
 		struct v4l2_buffer buf;
 		Common_Msg_t Image_to_send_msg;
 		Common_Msg_t Image_to_process_msg;
+		Common_Msg_t Image_to_storage_msg;
 		memset(&buf, 0, sizeof(buf));
 		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		buf.memory = V4L2_MEMORY_MMAP;
@@ -174,7 +175,11 @@ void *camera_capture_thread(void *arg)
 			v4l2_data_buffer.latest_index = write_index;
 			Change_Image_Taken_Flag(write_index); //更新图像占用标志位和计数器
 			Image_to_send_msg = msg_make(MODULE_ID_V4L2, MODULE_ID_UDP, sizeof(Image_Data), MSG_TYPE_IMAGE, &v4l2_data_buffer.camera_data[v4l2_data_buffer.latest_index]);
-			msg_send(&Image_to_send_msg);	
+			msg_send(&Image_to_send_msg);
+			Image_to_storage_msg = msg_make(MODULE_ID_V4L2, MODULE_ID_STORAGE, sizeof(Image_Data), MSG_TYPE_IMAGE, &v4l2_data_buffer.camera_data[v4l2_data_buffer.latest_index]);
+			msg_send(&Image_to_storage_msg);
+			Image_to_process_msg = msg_make(MODULE_ID_V4L2, MODULE_ID_ALARM, sizeof(Image_Data), MSG_TYPE_IMAGE, &v4l2_data_buffer.camera_data[v4l2_data_buffer.latest_index]);
+			msg_send(&Image_to_process_msg);
 			write_index = (write_index + 1) % V4L2_BUF_COUNT; // 切换到另一个缓冲区
 			//camera_udp_shared_buffer.status = 1; // 数据已经准备好，待处理，待发送
 		}

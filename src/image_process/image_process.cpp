@@ -51,6 +51,7 @@ void Move_Detectiom(Mat* input_frame)
         //putText(*input_frame, "Motion Detected", Point(10, 30), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 255), 2);
         //发告警消息给存储模块
         alarm_data.status = MOVED;
+        //printf("MOVED!!\n");
     }
     else{
         alarm_data.status = SAFE;
@@ -104,16 +105,17 @@ void alarm_msg_release_handler(Common_Msg_t* msg)
 void alarm_msg_handler(Common_Msg_t* msg)
 {
      switch(msg->msg_type){
-        case MSG_TYPE_IMAGE:
+        case MSG_TYPE_IMAGE:{
             //处理图像数据消息
             Image_Data* img_data = (Image_Data*)msg->data;
-            pthread_mutex_lock(process_data.lock);
+            pthread_mutex_lock(&process_data.lock);
             memcpy(process_data.frame_buffer, img_data->data, img_data->len);
             process_data.frame_len = img_data->len;
             process_data.is_updated = true;
             pthread_cond_signal(&process_data.cond);
-            pthread_mutex_unlock(process_data.lock);
+            pthread_mutex_unlock(&process_data.lock);
             break;
+        }
         case MSG_TYPE_ALARM:
             //处理告警数据消息
             break;
@@ -126,6 +128,12 @@ void alarm_msg_handler(Common_Msg_t* msg)
         default:
             break;
     }
+}
+void alarm_thread_wakeup(void)
+{
+    pthread_mutex_lock(&process_data.lock);
+    pthread_cond_signal(&process_data.cond);
+    pthread_mutex_unlock(&process_data.lock);
 }
 #ifdef __cplusplus
 }

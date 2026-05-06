@@ -4,11 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <pthread.h>
 void* storage_video_thread(void* arg);
-void push_frame_to_storage_buffer(Image_Data* data, time_t timestamp);
-void init_storage_buffer(void);
-
+void storage_thread_wakeup(void);
 #ifdef __cplusplus
 }
 #endif
