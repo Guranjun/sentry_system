@@ -11,6 +11,7 @@
 #include "msg_deliver.h"
 #include "image_process.hpp"
 #include "storage_video.hpp"
+#include "log.h"
 int running = 1;
 
 
