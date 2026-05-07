@@ -45,7 +45,19 @@ typedef struct{
 typedef void (*MsgHandler_t)(Common_Msg_t* msg); //消息处理函数指针类型定义
 typedef void (*MsgReleaseHandler_t)(Common_Msg_t* msg); //消息资源释放函数指针类型定义
 
-
+typedef enum{
+    DEBUG = 0,//调试信息
+    INFO ,//程序运行信息
+    WARN ,//警告，有异常出现
+    ERROR //出现错误
+     
+}LOG_LEVEL;
+typedef struct{
+    LOG_LEVEL level;
+    time_t timestamp;
+    Module_ID_e module;
+    char content[64];//日志内容
+}Log_Msg_t;
 typedef struct{
     uint8_t*    data;
     uint32_t    len;
@@ -125,6 +137,8 @@ void storage_msg_handler(Common_Msg_t* msg);
 /*告警线程相关数据结构和函数声明*/
 void alarm_msg_release_handler(Common_Msg_t* msg);
 void alarm_msg_handler(Common_Msg_t* msg);
+/*日志线程相关数据结构和函数声明*/
+void logger_msg_handler(Common_Msg_t* msg);
 #ifdef __cplusplus
 }
 #endif
