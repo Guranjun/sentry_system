@@ -5,10 +5,13 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
-#define MAX_MSG_QUEUE_SIZE 16
-
+#define MAX_MSG_QUEUE_SIZE 32
+#define MAX_LOG_MSG_SIZE 64
 typedef struct{
-    Common_Msg_t msg_buffer[MAX_MSG_QUEUE_SIZE]; //消息缓冲区，最多存储10条消息
+    Common_Msg_t msg_buffer[MAX_MSG_QUEUE_SIZE]; //消息缓冲区，最多存储16条消息
+    Log_Msg_t log_msg_buffer[MAX_LOG_MSG_SIZE];
+    
+    uint8_t log_idx; //当前积攒在缓冲区内的日志数量
     uint8_t head; //消息队列头索引
     uint8_t tail; //消息队列尾索引
     uint8_t count; //当前消息数量
@@ -105,6 +108,7 @@ Common_Msg_t msg_make(Module_ID_e src, Module_ID_e dst, uint32_t len, Msg_Type_e
 
 void msg_init(void)
 {
+    msg_queue.log_idx = 0;
     msg_queue.head = 0;
     msg_queue.tail = 0;
     msg_queue.count = 0;
@@ -114,8 +118,19 @@ void msg_init(void)
 void msg_send(Common_Msg_t* msg)
 {
     pthread_mutex_lock(&msg_queue.lock);
+    void* ptr = msg->data;
+    if(msg->msg_type == MSG_TYPE_LOG){
+        //先复制到log专属缓冲区再挂载到消息队列
+        memcpy(&msg_queue.log_msg_buffer[msg_queue.log_idx], msg->data, msg->data_len);
+        ptr = &msg_queue.log_msg_buffer[msg_queue.log_idx];
+        msg_queue.log_idx = (msg_queue.log_idx+1) % MAX_LOG_MSG_SIZE;
+    }
     if(msg_queue.count < MAX_MSG_QUEUE_SIZE){
-        msg_queue.msg_buffer[msg_queue.tail] = *msg;
+        msg_queue.msg_buffer[msg_queue.tail].src_module = msg->src_module;
+        msg_queue.msg_buffer[msg_queue.tail].dst_module = msg->dst_module;
+        msg_queue.msg_buffer[msg_queue.tail].data_len = msg->data_len;
+        msg_queue.msg_buffer[msg_queue.tail].msg_type = msg->msg_type;
+        msg_queue.msg_buffer[msg_queue.tail].data = ptr;
         msg_queue.tail = (msg_queue.tail + 1) % MAX_MSG_QUEUE_SIZE;
         msg_queue.count++;
         pthread_cond_signal(&msg_queue.cond); //通知消息队列有新消息
@@ -140,27 +155,15 @@ int msg_receive(Common_Msg_t* msg)
 }
 void msg_release(Common_Msg_t* msg)
 {
-    //根据消息类型释放消息数据资源
-    switch(msg->msg_type){
-        case MSG_TYPE_IMAGE:
-            //释放图像数据资源
-            V4L2_msg_release_handler(msg);
-            break;
-        case MSG_TYPE_ALARM:
-            //释放告警数据资源
-            alarm_msg_release_handler(msg);
-            break;
-        case MSG_TYPE_LOG:
-            //释放日志数据资源
-            logger_msg_release_handler(msg);
-            break;
-        case MSG_TYPE_COMMAND:
-            //释放命令数据资源
-            command_msg_release_handler(msg);
-            break;
-        default:
-            break;
-
+    // 直接遍历路由表寻找该消息的目标模块
+    for(int i = 0; i < sizeof(msg_route_table)/sizeof(MsgRouteTable_t); i++){
+        if(msg_route_table[i].mod_id == msg->dst_module){
+            // 如果该模块注册了释放函数，则执行它
+            if (msg_route_table[i].release_handler != NULL) {
+                msg_route_table[i].release_handler(msg);
+            }
+            return; 
+        }
     }
 }
 void msg_cleanup(void)
