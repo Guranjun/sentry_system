@@ -67,10 +67,12 @@ static uint8_t get_db_count(sqlite3* db, uint16_t* out_count)
         }
         else{
             fprintf(stderr, "SQL step error: %s\n", sqlite3_errmsg(db));
+            return -1;
         }
     }
     else{
         fprintf(stderr, "SQL prepare error: %s (code: %d)\n", sqlite3_errmsg(db), rc);
+        return -1;
     }
     sqlite3_finalize(stmt);
     *out_count = count;
@@ -81,6 +83,22 @@ static uint8_t delete_db_msg(sqlite3* db, uint16_t delete_num)
     /*写一个除level = error外删除delete_num行的语句，删除普通的调试、程序信息
     不过最好分表先，建两个表，error一个表，其它的一个表
     */
+    sqlite3_stmt* stmt = NULL;
+    const char* sql = "DELETE FROM logs WHERE level < 3 AND id IN (SELECT id FROM logs ORDER BY id ASC LIMIT ?);";
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int(stmt, 1, delete_num);
+        if(sqlite3_step(stmt) != SQLITE_DONE){
+            fprintf(stderr, "Delete failed: %s\n", sqlite3_errmsg(db));
+            return -1;
+        }
+    }
+    else{
+        fprintf(stderr, "SQL prepare error: %s (code: %d)\n", sqlite3_errmsg(db), rc);
+        return -1;
+    }
+    sqlite3_finalize(stmt);
+    return 0;
 }
 void export_logs_on_demand(int count)
 {
