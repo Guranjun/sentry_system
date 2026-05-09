@@ -22,5 +22,6 @@ cpp/
 build/
 py_for_pc/venv_yolo/
 bin/
+*.db
 ### yolo ###
 yolov8n.pt

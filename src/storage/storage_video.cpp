@@ -9,6 +9,7 @@
 //#include "ffmpeg_muxer.h"
 
 #include <stdint.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <cstdlib>
@@ -37,7 +38,8 @@ typedef struct {
     vector<uint8_t> (*read_ptr)[MAXSIZE];
     uint32_t *read_lens_ptr;
     time_t *read_ts_ptr;
-
+    Log_Msg_t log_msg;
+    Common_Msg_t msg;
     int write_idx; 
     bool data_ready; // 标志位：读块是否装满了数据待存
 
@@ -63,6 +65,8 @@ static void Storage_Data_Init(void)
     storage_data.read_ts_ptr = storage_data.ts_B;
     storage_data.write_idx = 0;
     storage_data.data_ready = false;
+    memset(&storage_data.log_msg, 0, sizeof(storage_data.log_msg));
+    memset(&storage_data.msg, 0, sizeof(storage_data.msg));
     for(int i = 0;i < MAXSIZE; i++){
         storage_data.buffer_A[i].reserve(128 * 1024);
         storage_data.buffer_B[i].reserve(128 * 1024);
@@ -103,6 +107,9 @@ void* storage_video_thread(void* arg)
                 if(fp){
                     is_recording = true;
                     //写个日志
+                    log_msg_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "Start to store");
+                    storage_data.msg = msg_make(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
+                    msg_send(&storage_data.msg);
                 }
                 else{
                     perror("Failed To Open File:");
@@ -124,6 +131,9 @@ void* storage_video_thread(void* arg)
                     }
                     is_recording = false;
                     //写个日志
+                    log_msg_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "Stored");
+                    storage_data.msg = msg_make(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
+                    msg_send(&storage_data.msg);
                 }
             } 
         }
@@ -134,6 +144,9 @@ void* storage_video_thread(void* arg)
                 fp = nullptr;
                 is_recording = false;
                 //写个日志
+                log_msg_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "File closed");
+                storage_data.msg = msg_make(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
+                msg_send(&storage_data.msg);
             }
         }
     }
@@ -162,6 +175,9 @@ void storage_msg_handler(Common_Msg_t* msg)
                 if(storage_data.data_ready){
                     storage_data.write_idx = 0;
                     //写个日志
+                    log_msg_make(&storage_data.log_msg, ERROR, time(NULL), MODULE_ID_STORAGE, "Failed");
+                    storage_data.msg = msg_make(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
+                    msg_send(&storage_data.msg);
                 }
                 else{
                     //交换两个缓冲区指针，并重置writeidx，标记数据已准备好

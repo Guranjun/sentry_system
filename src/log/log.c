@@ -1,8 +1,11 @@
 #include "sqlite3.h"
 #include "common.h"
-#include "cJSON.h"
-#include <corecrt_search.h>
-#include <cstdint>
+//#include "cJSON.h"
+//#include <corecrt_search.h>
+//#include <cstdint>
+#include "log.h"
+#include <string.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
@@ -38,8 +41,8 @@ static void log_init(void)
 } 
 static void log_deinit(void)
 {
-    pthread_mutex_destroy( &log_data_buf.lock, NULL);
-    pthread_cond_destroy( &log_data_buf.cond, NULL);
+    pthread_mutex_destroy( &log_data_buf.lock);
+    pthread_cond_destroy( &log_data_buf.cond);
 }
 static void DB_Init(void)
 {
@@ -115,19 +118,35 @@ static void db_save_batch(Log_Buffer_t* buffer)
     sqlite3_exec(log_data_buf.db, "BEGIN TRANSACTION;", NULL, NULL,NULL);
     sqlite3_stmt* stmt;
     const char* sql = "INSERT INTO logs (level, timestamp, module, content) VALUES (?, ?, ?, ?);";
-    sqlite3_prepare_v2(log_data_buf.db, sql, -1, &stmt, NULL);
+    if (sqlite3_prepare_v2(log_data_buf.db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        printf("Prepare error: %s\n", sqlite3_errmsg(log_data_buf.db));
+        return;
+    }
 
     for(int i = 0; i < buffer->count; i++){
         sqlite3_bind_int(stmt, 1, buffer->items[i].level);
         sqlite3_bind_int64(stmt, 2, buffer->items[i].timestamp);
         sqlite3_bind_int(stmt, 3, buffer->items[i].module);
         sqlite3_bind_text(stmt, 4, buffer->items[i].content, -1, SQLITE_STATIC);
-        sqlite3_step(stmt);
+        if(sqlite3_step(stmt) != SQLITE_DONE){
+            printf("SQLite Error: %s\n", sqlite3_errmsg(log_data_buf.db));
+        }
         sqlite3_reset(stmt);
     }
+    //printf("sql make !!!\n");
     sqlite3_finalize(stmt);
-    sqlite3_exec(log_data_buf.db, "COMMIT;", NULL, NULL, NULL);
+    int rc = sqlite3_exec(log_data_buf.db, "COMMIT;", NULL, NULL, NULL);
+    if (rc != SQLITE_OK) {
+        printf("Commit Failed: %s\n", sqlite3_errmsg(log_data_buf.db));   
+    }
     buffer->count = 0;
+}
+void log_msg_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content)
+{
+    log_msg->level = level;
+    log_msg->timestamp = timestamp;
+    log_msg->module = module;
+    memcpy(log_msg->content, content, sizeof(log_msg->content));
 }
 void* logger_process_thread(void* arg)
 {

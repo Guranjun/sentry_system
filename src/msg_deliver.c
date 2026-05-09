@@ -125,6 +125,7 @@ void msg_send(Common_Msg_t* msg)
         ptr = &msg_queue.log_msg_buffer[msg_queue.log_idx];
         msg_queue.log_idx = (msg_queue.log_idx+1) % MAX_LOG_MSG_SIZE;
     }
+    msg->data = ptr;
     if(msg_queue.count < MAX_MSG_QUEUE_SIZE){
         msg_queue.msg_buffer[msg_queue.tail].src_module = msg->src_module;
         msg_queue.msg_buffer[msg_queue.tail].dst_module = msg->dst_module;
@@ -157,7 +158,7 @@ void msg_release(Common_Msg_t* msg)
 {
     // 直接遍历路由表寻找该消息的目标模块
     for(int i = 0; i < sizeof(msg_route_table)/sizeof(MsgRouteTable_t); i++){
-        if(msg_route_table[i].mod_id == msg->dst_module){
+        if(msg_route_table[i].mod_id == msg->src_module){
             // 如果该模块注册了释放函数，则执行它
             if (msg_route_table[i].release_handler != NULL) {
                 msg_route_table[i].release_handler(msg);
@@ -175,6 +176,7 @@ void msg_cleanup(void)
 void* msg_deliver_thread(void* arg)
 {
     Common_Msg_t msg;
+    msg_init();
     while(running){
         if(msg_receive(&msg) == 0){
             /*
