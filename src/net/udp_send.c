@@ -183,6 +183,10 @@ void udp_msg_handler(Common_Msg_t* msg)
         case MSG_TYPE_COMMAND:
             //处理命令数据消息
             break;
+        case MSG_TYPE_BIGDATA:
+            //处理大数据消息
+            /*由于大数据消息占用的内存一定很大，所以udp私有的缓冲区一定不够用，这时需采用零拷贝策略，或让产生这个大数据的模块分块发送至udp发送模块*/
+            break;
         default:
             break;
     }

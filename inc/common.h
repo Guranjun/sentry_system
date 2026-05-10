@@ -28,7 +28,8 @@ typedef enum{
     MSG_TYPE_IMAGE = 0, //图像数据消息
     MSG_TYPE_ALARM,     //告警消息
     MSG_TYPE_LOG,       //日志消息
-    MSG_TYPE_COMMAND    //命令消息
+    MSG_TYPE_COMMAND,   //命令消息
+    MSG_TYPE_BIGDATA   //大数据消息
 }Msg_Type_e;//消息类型枚举类型定义，根据实际需求设计
 typedef enum{
     SAFE = 0,
@@ -41,7 +42,14 @@ typedef struct{
     Msg_Type_e msg_type; //消息类型
     void* data; //消息数据指针
 }Common_Msg_t;//通用的数据交换消息结构体，具体定义根据实际需求设计
-
+typedef struct {
+    Module_ID_e src_module; //消息来源模块
+    Module_ID_e dst_module; //消息目标模块
+    void* data_ptr;  // 指向 mmap 后的内存首地址
+    uint32_t total_len; // 总大小（如 5MB）
+    Msg_Type_e msg_type; //消息类型
+    int      fd;        // 原始文件句柄，用于释放
+} BigData_Msg_t;
 typedef void (*MsgHandler_t)(Common_Msg_t* msg); //消息处理函数指针类型定义
 typedef void (*MsgReleaseHandler_t)(Common_Msg_t* msg); //消息资源释放函数指针类型定义
 
