@@ -25,6 +25,8 @@ typedef struct{
     bool is_sending; //标志位，指示是否有新数据需要发送
     unsigned char* send_buf; // 发送缓冲区，足够大以容纳最大UDP包
     uint32_t send_buf_len; // 发送缓冲区当前数据长度
+    Common_Msg_t msg;
+    Log_Msg_t log_msg;
     pthread_mutex_t lock; //互斥锁，保护数据访问
     pthread_cond_t cond; //条件变量，通知数据更新
 } UDP_Send_Buffer; //UDP发送线程私有数据结构体定义
@@ -64,6 +66,8 @@ static int Udp_Init(UDP_Send_Buffer *udp_config, const char *ip, uint16_t port)
 	udp_config->dest_addr.sin_port = htons(port);
 	udp_config->dest_addr.sin_addr.s_addr = inet_addr(ip);
 	//初始化帧id计数器
+    memset(&udp_send_buffer.log_msg, 0, sizeof(udp_send_buffer.log_msg));
+    memset(&udp_send_buffer.msg, 0, sizeof(udp_send_buffer.msg));
 	udp_config->current_frame_id = 0;
 	int snd_buf = 1024 * 1024; // 设置 1MB 发送缓存
     setsockopt(udp_config->Sock, SOL_SOCKET, SO_SNDBUF, &snd_buf, sizeof(snd_buf));
@@ -106,6 +110,9 @@ static void Udp_Send_Frame(UDP_Send_Buffer *udp, uint8_t *send_data, uint32_t se
         send_packet_optimized(udp->Sock, &hdr, send_data + (i * CHUNK_SIZE), &udp->dest_addr);
     }
     udp->current_frame_id++; 
+    log_msg_make(&udp_send_buffer.log_msg, INFO, time(NULL), MODULE_ID_UDP, "A file uploaded!");
+    udp_send_buffer.msg = msg_make(MODULE_ID_UDP, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
+    msg_send(&storage_data.msg);
 }
 void* udp_send_thread(void *arg)
 {
@@ -126,6 +133,10 @@ void* udp_send_thread(void *arg)
         pthread_mutex_lock(&udp_send_buffer.lock);
         while((!udp_send_buffer.is_sending) && running){
             pthread_cond_wait(&udp_send_buffer.cond, &udp_send_buffer.lock);
+        }
+        if(!running){
+            pthread_mutex_unlock(&udp_send_buffer.lock);
+            break;
         }
         /*第二步*/
         udp_send_buffer.is_sending = true; //重置标志位

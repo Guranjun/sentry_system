@@ -56,7 +56,7 @@ void Move_Detectiom(Mat* input_frame)
     else{
         alarm_data.status = SAFE;
     }
-    Common_Msg_t msg = msg_make(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
+    static Common_Msg_t msg = msg_make(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
     msg_send(&msg);
     current_frame_gray.copyTo(prev_frame_gray); // 更新上一帧的灰度图像
     
