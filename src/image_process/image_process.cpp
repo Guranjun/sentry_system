@@ -54,17 +54,21 @@ void Move_Detectiom(Mat* input_frame)
     if (movement_percentage > 0.02) { // 如果运动区域占比超过2%，认为有运动
         //putText(*input_frame, "Motion Detected", Point(10, 30), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 255), 2);
         //发告警消息给存储模块
+        if(alarm_data.status == SAFE){
+            log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Detect Moved!");
+            process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
+            msg_send(&process_data.msg);
+        }
         alarm_data.status = MOVED;
-        log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Detect Moved!");
-        process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
-        msg_send(&process_data.msg);
         //printf("MOVED!!\n");
     }
     else{
+        if(alarm_data.status == MOVED){
+            log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Safe!");
+            process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
+            msg_send(&process_data.msg);
+        }
         alarm_data.status = SAFE;
-        log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Safe!");
-        process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
-        msg_send(&process_data.msg);
     }
     static Common_Msg_t msg = msg_make(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
     msg_send(&msg);

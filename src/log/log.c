@@ -10,8 +10,9 @@
 #include <stdlib.h>
 #include <time.h>
 #define DB_PATH "/mnt/flash/syslogs.db"
-#define MAX_DB_SIZE 16384
+#define MAX_DB_SIZE 16384   //应该设为16384
 #define MAX_LOG_COUNT 50
+#define DELETE_LOG_NUM 512
 typedef struct{
     Log_Msg_t items[MAX_LOG_COUNT];
     int count;
@@ -110,16 +111,16 @@ void export_logs_on_demand(int count)
     *从数据库采集count条数据，然后再以json的格式组成一个字符串，调用udp/tcp上传日志
     */
 }
-static void db_save_batch(Log_Buffer_t* buffer)
+static void db_save_batch(sqlite3* db, Log_Buffer_t* buffer)
 {
     if(buffer->count <=0){
         return;
     }
-    sqlite3_exec(log_data_buf.db, "BEGIN TRANSACTION;", NULL, NULL,NULL);
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL,NULL);
     sqlite3_stmt* stmt;
     const char* sql = "INSERT INTO logs (level, timestamp, module, content) VALUES (?, ?, ?, ?);";
-    if (sqlite3_prepare_v2(log_data_buf.db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-        printf("Prepare error: %s\n", sqlite3_errmsg(log_data_buf.db));
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        printf("Prepare error: %s\n", sqlite3_errmsg(db));
         return;
     }
 
@@ -129,15 +130,15 @@ static void db_save_batch(Log_Buffer_t* buffer)
         sqlite3_bind_int(stmt, 3, buffer->items[i].module);
         sqlite3_bind_text(stmt, 4, buffer->items[i].content, -1, SQLITE_STATIC);
         if(sqlite3_step(stmt) != SQLITE_DONE){
-            printf("SQLite Error: %s\n", sqlite3_errmsg(log_data_buf.db));
+            printf("SQLite Error: %s\n", sqlite3_errmsg(db));
         }
         sqlite3_reset(stmt);
     }
     //printf("sql make !!!\n");
     sqlite3_finalize(stmt);
-    int rc = sqlite3_exec(log_data_buf.db, "COMMIT;", NULL, NULL, NULL);
+    int rc = sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     if (rc != SQLITE_OK) {
-        printf("Commit Failed: %s\n", sqlite3_errmsg(log_data_buf.db));   
+        printf("Commit Failed: %s\n", sqlite3_errmsg(db));   
     }
     buffer->count = 0;
 }
@@ -152,9 +153,12 @@ void* logger_process_thread(void* arg)
 {
     log_init();
     DB_Init();
+    uint16_t db_sql_count;
     while(running){
         pthread_mutex_lock(&log_data_buf.lock);
         while(log_data_buf.input_ptr->count < 30 && running){
+            /*为防止一直没有新的日志到来，设置了一个定时检查写入sql的语句，防止日志在缓冲区持续堆积
+            */
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
             ts.tv_sec += 5;
@@ -163,15 +167,20 @@ void* logger_process_thread(void* arg)
                 break;
             }
         }
+        if(get_db_count(log_data_buf.db, &db_sql_count) == 0){
+            if(db_sql_count >= MAX_DB_SIZE){
+                delete_db_msg(log_data_buf.db, DELETE_LOG_NUM);
+            }
+        }
         Log_Buffer_t* temp = log_data_buf.input_ptr;
         log_data_buf.input_ptr = log_data_buf.process_ptr;
         log_data_buf.process_ptr = temp;
         pthread_mutex_unlock(&log_data_buf.lock);
-        db_save_batch(log_data_buf.process_ptr);
+        db_save_batch(log_data_buf.db, log_data_buf.process_ptr);
         
     }
     pthread_mutex_lock(&log_data_buf.lock);
-    db_save_batch(log_data_buf.input_ptr);
+    db_save_batch(log_data_buf.db, log_data_buf.input_ptr);//防止程序退出时还有没写的日志
     pthread_mutex_unlock(&log_data_buf.lock);
     
     sqlite3_close(log_data_buf.db);
