@@ -147,7 +147,7 @@ void alarm_msg_release_handler(Common_Msg_t* msg);
 void alarm_msg_handler(Common_Msg_t* msg);
 /*日志线程相关数据结构和函数声明*/
 void logger_msg_handler(Common_Msg_t* msg);
-void log_msg_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content);
+void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content);
 #ifdef __cplusplus
 }
 #endif

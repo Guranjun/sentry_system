@@ -141,7 +141,7 @@ static void db_save_batch(Log_Buffer_t* buffer)
     }
     buffer->count = 0;
 }
-void log_msg_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content)
+void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content)
 {
     log_msg->level = level;
     log_msg->timestamp = timestamp;

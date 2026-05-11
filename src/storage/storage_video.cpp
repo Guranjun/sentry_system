@@ -107,7 +107,7 @@ void* storage_video_thread(void* arg)
                 if(fp){
                     is_recording = true;
                     //写个日志
-                    log_msg_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "Start to store");
+                    log_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "Start to store");
                     storage_data.msg = msg_make(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
                     msg_send(&storage_data.msg);
                 }
@@ -131,7 +131,7 @@ void* storage_video_thread(void* arg)
                     }
                     is_recording = false;
                     //写个日志
-                    log_msg_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "Stored");
+                    log_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "Stored");
                     storage_data.msg = msg_make(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
                     msg_send(&storage_data.msg);
                 }
@@ -144,7 +144,7 @@ void* storage_video_thread(void* arg)
                 fp = nullptr;
                 is_recording = false;
                 //写个日志
-                log_msg_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "File closed");
+                log_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "File closed");
                 storage_data.msg = msg_make(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
                 msg_send(&storage_data.msg);
             }
@@ -175,7 +175,7 @@ void storage_msg_handler(Common_Msg_t* msg)
                 if(storage_data.data_ready){
                     storage_data.write_idx = 0;
                     //写个日志
-                    log_msg_make(&storage_data.log_msg, ERROR, time(NULL), MODULE_ID_STORAGE, "Failed");
+                    log_make(&storage_data.log_msg, ERROR, time(NULL), MODULE_ID_STORAGE, "Failed");
                     storage_data.msg = msg_make(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
                     msg_send(&storage_data.msg);
                 }

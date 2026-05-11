@@ -16,6 +16,8 @@ using namespace std;
 typedef struct{
     uint8_t frame_buffer[128 * 1024];
     uint32_t frame_len;
+    Common_Msg_t msg;
+    Log_Msg_t log_msg;
     bool is_updated;
     pthread_mutex_t lock;
     pthread_cond_t cond;
@@ -26,6 +28,8 @@ void Process_Data_Init(void)
     //process_data.frame_buffer = malloc(128 * 1024);
     process_data.frame_len = 0;
     process_data.is_updated = false;
+    memset(&process_data.log_msg, 0, sizeof(process_data.log_msg));
+    memset(&process_data.msg, 0, sizeof(process_data.msg));
     pthread_mutex_init(&process_data.lock, NULL);
     pthread_cond_init(&process_data.cond, NULL);
 }
@@ -51,10 +55,16 @@ void Move_Detectiom(Mat* input_frame)
         //putText(*input_frame, "Motion Detected", Point(10, 30), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 255), 2);
         //发告警消息给存储模块
         alarm_data.status = MOVED;
+        log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Detect Moved!");
+        process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
+        msg_send(&process_data.msg);
         //printf("MOVED!!\n");
     }
     else{
         alarm_data.status = SAFE;
+        log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Safe!");
+        process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
+        msg_send(&process_data.msg);
     }
     static Common_Msg_t msg = msg_make(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
     msg_send(&msg);
