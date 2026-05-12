@@ -1,5 +1,6 @@
 #include "sqlite3.h"
 #include "common.h"
+#include "sqlite_about.h"
 //#include "cJSON.h"
 //#include <corecrt_search.h>
 //#include <cstdint>
@@ -40,70 +41,13 @@ static void log_init(void)
     pthread_mutex_init( &log_data_buf.lock, NULL);
     pthread_cond_init( &log_data_buf.cond, NULL);
 } 
+
 static void log_deinit(void)
 {
     pthread_mutex_destroy( &log_data_buf.lock);
     pthread_cond_destroy( &log_data_buf.cond);
 }
-static void DB_Init(void)
-{
-    if(sqlite3_open(DB_PATH, &log_data_buf.db) != SQLITE_OK){
-        fprintf(stderr, "Can't open the database:%s", sqlite3_errmsg(log_data_buf.db));
-        return;
-    }
-    const char* sql = "CREATE TABLE IF NOT EXISTS logs("
-                      "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                      "level INTEGER,"
-                      "timestamp INTEGER,"
-                      "module INTEGER,"
-                      "content TEXT);";
-    sqlite3_exec(log_data_buf.db, sql, NULL, NULL, NULL);
-}
-static uint8_t get_db_count(sqlite3* db, uint16_t* out_count)
-{  
-    sqlite3_stmt* stmt = NULL;
-    int count = 0;
-    const char* sql = "SELECT COUNT(*) FROM logs;";
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if(rc == SQLITE_OK){
-        if(sqlite3_step(stmt) == SQLITE_ROW){
-            count = sqlite3_column_int(stmt, 0);
-        }
-        else{
-            fprintf(stderr, "SQL step error: %s\n", sqlite3_errmsg(db));
-            return -1;
-        }
-    }
-    else{
-        fprintf(stderr, "SQL prepare error: %s (code: %d)\n", sqlite3_errmsg(db), rc);
-        return -1;
-    }
-    sqlite3_finalize(stmt);
-    *out_count = count;
-    return 0;
-}
-static uint8_t delete_db_msg(sqlite3* db, uint16_t delete_num)
-{
-    /*写一个除level = error外删除delete_num行的语句，删除普通的调试、程序信息
-    不过最好分表先，建两个表，error一个表，其它的一个表
-    */
-    sqlite3_stmt* stmt = NULL;
-    const char* sql = "DELETE FROM logs WHERE level < 3 AND id IN (SELECT id FROM logs ORDER BY id ASC LIMIT ?);";
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if(rc == SQLITE_OK){
-        sqlite3_bind_int(stmt, 1, delete_num);
-        if(sqlite3_step(stmt) != SQLITE_DONE){
-            fprintf(stderr, "Delete failed: %s\n", sqlite3_errmsg(db));
-            return -1;
-        }
-    }
-    else{
-        fprintf(stderr, "SQL prepare error: %s (code: %d)\n", sqlite3_errmsg(db), rc);
-        return -1;
-    }
-    sqlite3_finalize(stmt);
-    return 0;
-}
+
 void export_logs_on_demand(int count)
 {
     /*如果上位机发送命令要提交日志*/
@@ -111,37 +55,7 @@ void export_logs_on_demand(int count)
     *从数据库采集count条数据，然后再以json的格式组成一个字符串，调用udp/tcp上传日志
     */
 }
-static void db_save_batch(sqlite3* db, Log_Buffer_t* buffer)
-{
-    if(buffer->count <=0){
-        return;
-    }
-    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL,NULL);
-    sqlite3_stmt* stmt;
-    const char* sql = "INSERT INTO logs (level, timestamp, module, content) VALUES (?, ?, ?, ?);";
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-        printf("Prepare error: %s\n", sqlite3_errmsg(db));
-        return;
-    }
 
-    for(int i = 0; i < buffer->count; i++){
-        sqlite3_bind_int(stmt, 1, buffer->items[i].level);
-        sqlite3_bind_int64(stmt, 2, buffer->items[i].timestamp);
-        sqlite3_bind_int(stmt, 3, buffer->items[i].module);
-        sqlite3_bind_text(stmt, 4, buffer->items[i].content, -1, SQLITE_STATIC);
-        if(sqlite3_step(stmt) != SQLITE_DONE){
-            printf("SQLite Error: %s\n", sqlite3_errmsg(db));
-        }
-        sqlite3_reset(stmt);
-    }
-    //printf("sql make !!!\n");
-    sqlite3_finalize(stmt);
-    int rc = sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
-    if (rc != SQLITE_OK) {
-        printf("Commit Failed: %s\n", sqlite3_errmsg(db));   
-    }
-    buffer->count = 0;
-}
 void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content)
 {
     log_msg->level = level;
@@ -152,7 +66,7 @@ void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e
 void* logger_process_thread(void* arg)
 {
     log_init();
-    DB_Init();
+    DB_Init(log_data_buf.db);
     uint16_t db_sql_count;
     while(running){
         pthread_mutex_lock(&log_data_buf.lock);
