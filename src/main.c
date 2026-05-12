@@ -9,7 +9,7 @@
 #include "v4l2_dev.h"
 #include "udp_send.h"
 #include "msg_deliver.h"
-#include "image_process.hpp"
+#include "alarm.hpp"
 #include "storage_video.hpp"
 #include "log.h"
 int running = 1;

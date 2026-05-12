@@ -31,7 +31,7 @@ typedef struct{
     pthread_cond_t cond; //条件变量，通知数据更新
 } UDP_Send_Buffer; //UDP发送线程私有数据结构体定义
 static UDP_Send_Buffer udp_send_buffer; //UDP发送线程私有数据实例
-static void send_packet_optimized(int sock, Frame_Header *header, uint8_t *image_data, struct sockaddr_in *dest_addr) {
+static void send_packet_optimized(int sock, Frame_Header *header, uint8_t *data, struct sockaddr_in *dest_addr) {
     struct iovec iov[2];
     struct msghdr msg;
 
@@ -40,7 +40,7 @@ static void send_packet_optimized(int sock, Frame_Header *header, uint8_t *image
     iov[0].iov_len = sizeof(Frame_Header); // 确保类型名正确
 
     // 第二块：图像数据分片
-    iov[1].iov_base = image_data;
+    iov[1].iov_base = data;
     iov[1].iov_len = header->data_len;
 
     // 填充 msghdr 结构

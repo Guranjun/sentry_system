@@ -40,6 +40,7 @@ typedef struct{
     Module_ID_e dst_module; //消息目标模块
     uint32_t data_len; //消息数据长度
     Msg_Type_e msg_type; //消息类型
+    uint8_t count;//消息被发送还没返回次数
     void* data; //消息数据指针
 }Common_Msg_t;//通用的数据交换消息结构体，具体定义根据实际需求设计
 typedef struct {

@@ -8,7 +8,7 @@
 #define MAX_MSG_QUEUE_SIZE 32
 #define MAX_LOG_MSG_SIZE 64
 typedef struct{
-    Common_Msg_t msg_buffer[MAX_MSG_QUEUE_SIZE]; //消息缓冲区，最多存储16条消息
+    Common_Msg_t msg_buffer[MAX_MSG_QUEUE_SIZE]; //消息缓冲区
     Log_Msg_t log_msg_buffer[MAX_LOG_MSG_SIZE];
     
     uint8_t log_idx; //当前积攒在缓冲区内的日志数量

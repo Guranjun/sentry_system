@@ -1,16 +1,7 @@
-#ifndef IMAGE_PROCESSOR_HPP
-#define IMAGE_PROCESSOR_HPP
-
-#ifdef __cplusplus
-extern "C"{
-#endif
-void* process_image_thread(void* arg) ;
-void alarm_thread_wakeup(void);
-#ifdef __cplusplus
-}
-#endif
-
-
-
-
-#endif // IMAGE_PROCESSOR_HPP
+#ifndef __IMAGE_PROCESS_HPP
+#define __IMAGE_PROCESS_HPP
+#include "common.h"
+#include <stdbool>
+Alarm_Data Move_Detect(Mat* input_frame);
+bool alarm_data_diff(Alarm_Data data);
+#endif //__IMAGE_PROCESS_HPP

@@ -1,3 +1,4 @@
+#include "alarm.hpp"
 #include "image_process.hpp"
 #include "common.h"
 #include <cstdint>
@@ -23,7 +24,7 @@ typedef struct{
     pthread_cond_t cond;
 }Process_Data;
 static Process_Data process_data; 
-void Process_Data_Init(void)
+static void Process_Data_Init(void)
 {
     //process_data.frame_buffer = malloc(128 * 1024);
     process_data.frame_len = 0;
@@ -33,48 +34,6 @@ void Process_Data_Init(void)
     pthread_mutex_init(&process_data.lock, NULL);
     pthread_cond_init(&process_data.cond, NULL);
 }
-void Move_Detectiom(Mat* input_frame)
-{
-    static Mat prev_frame_gray; // 上一帧的灰度图像
-    static bool is_first_frame = true; // 是否是第一帧的标志
-    static Alarm_Data alarm_data;
-    Mat current_frame_gray, frame_diff, thresh;
-    // 将当前帧转换为灰度图像
-    cvtColor(*input_frame, current_frame_gray, COLOR_BGR2GRAY);
-    if (is_first_frame) {
-        prev_frame_gray = current_frame_gray.clone();
-        is_first_frame = false;
-        return ;// 第一帧没有前一帧可比较，直接返回
-    }
-    // 计算当前帧与上一帧的差异
-    absdiff(current_frame_gray, prev_frame_gray, frame_diff);
-    // 对差异图像进行二值化处理，得到运动区域
-    threshold(frame_diff, thresh, 25, 255, THRESH_BINARY);
-    double movement_percentage = (double)countNonZero(thresh) / (thresh.rows * thresh.cols);
-    if (movement_percentage > 0.02) { // 如果运动区域占比超过2%，认为有运动
-        //putText(*input_frame, "Motion Detected", Point(10, 30), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 255), 2);
-        //发告警消息给存储模块
-        if(alarm_data.status == SAFE){
-            log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Detect Moved!");
-            process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
-            msg_send(&process_data.msg);
-        }
-        alarm_data.status = MOVED;
-        //printf("MOVED!!\n");
-    }
-    else{
-        if(alarm_data.status == MOVED){
-            log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Safe!");
-            process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
-            msg_send(&process_data.msg);
-        }
-        alarm_data.status = SAFE;
-    }
-    static Common_Msg_t msg = msg_make(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
-    msg_send(&msg);
-    current_frame_gray.copyTo(prev_frame_gray); // 更新上一帧的灰度图像
-    
-}
 #ifdef __cplusplus
 extern "C" 
 {
@@ -82,6 +41,8 @@ extern "C"
 void* process_image_thread(void* arg) 
 {    
     Process_Data_Init();
+    Alarm_Data alarm_data;
+    static string log_string;
     while (running) {
         pthread_mutex_lock(&process_data.lock);
         while(!process_data.is_updated && running){
@@ -106,8 +67,17 @@ void* process_image_thread(void* arg)
         }
 
         // 这里可以添加任何图像处理算法
-        Move_Detectiom(&img);
-
+        //Move_Detectiom(&img);
+        alarm_data = Move_Detect(&img);
+        if(alarm_data_diff(alarm_data)){
+            log_string = "Status changed to";
+            log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, string + to_string(alarm_data.status));
+            process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
+            msg_send(&process_data.msg);
+        }
+        static Common_Msg_t msg = msg_make(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
+        msg_send(&msg);
+        current_frame_gray.copyTo(prev_frame_gray);
     }
     return nullptr;
 }
