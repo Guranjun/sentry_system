@@ -1,6 +1,7 @@
 #include "alarm.hpp"
 #include "image_process.hpp"
 #include "common.h"
+#include "msg_about.h"
 #include <cstdint>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>    // 专门用于 cvtColor, threshold, putText 等图像处理
@@ -17,7 +18,6 @@ using namespace std;
 typedef struct{
     uint8_t frame_buffer[128 * 1024];
     uint32_t frame_len;
-    Common_Msg_t msg;
     Log_Msg_t log_msg;
     bool is_updated;
     pthread_mutex_t lock;
@@ -30,7 +30,6 @@ static void Process_Data_Init(void)
     process_data.frame_len = 0;
     process_data.is_updated = false;
     memset(&process_data.log_msg, 0, sizeof(process_data.log_msg));
-    memset(&process_data.msg, 0, sizeof(process_data.msg));
     pthread_mutex_init(&process_data.lock, NULL);
     pthread_cond_init(&process_data.cond, NULL);
 }
@@ -72,11 +71,13 @@ void* process_image_thread(void* arg)
         if(alarm_data_diff(alarm_data)){
             log_string = "Status changed to";
             log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, string + to_string(alarm_data.status));
-            process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
-            msg_send(&process_data.msg);
+            msg_dispatch(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
         }
-        static Common_Msg_t msg = msg_make(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
-        msg_send(&msg);
+#ifdef MSG_ENABLE_PRIORITY
+        msg_dispatch_with_priority(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, MSG_PRIORITY_HIGH, &alarm_data);
+#else
+        msg_dispatch(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
+#endif
         current_frame_gray.copyTo(prev_frame_gray);
     }
     return nullptr;

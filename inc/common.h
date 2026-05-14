@@ -5,151 +5,139 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <time.h>
-//#include "log.h"
+
 #define FRAME_HIGH 240
 #define FRAME_WIDTH 320
 #define V4L2_BUF_COUNT 2
-#ifdef __cplusplus
-extern "C"{
-#endif
-/*udp发送线程与v4l2采集线程之间的共享数据区*/
-/*数据类型声明*/
 
-typedef enum{
-    MODULE_ID_V4L2 = 0, //v4l2采集模块
-    MODULE_ID_UDP,      //udp发送模块
-    MODULE_ID_ALARM,    //告警处理模块
-    MODULE_ID_LOGGER,   //日志处理模块
-    MODULE_ID_STORAGE,  //存储模块
-    MODULE_ID_TCP,      //tcp通信模块
-    MODULE_ID_COMMAND  //上位机命令获取模块
-}Module_ID_e;//模块ID枚举类型定义，根据实际需求设计
-typedef enum{
-    MSG_TYPE_IMAGE = 0, //图像数据消息
-    MSG_TYPE_ALARM,     //告警消息
-    MSG_TYPE_LOG,       //日志消息
-    MSG_TYPE_COMMAND,   //命令消息
-    MSG_TYPE_BIGDATA   //大数据消息
-}Msg_Type_e;//消息类型枚举类型定义，根据实际需求设计
-typedef enum{
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    MODULE_ID_V4L2 = 0,
+    MODULE_ID_UDP,
+    MODULE_ID_ALARM,
+    MODULE_ID_LOGGER,
+    MODULE_ID_STORAGE,
+    MODULE_ID_TCP,
+    MODULE_ID_COMMAND,
+    MODULE_ID_MAX
+} Module_ID_e;
+
+typedef enum {
+    MSG_TYPE_IMAGE = 0,
+    MSG_TYPE_ALARM,
+    MSG_TYPE_LOG,
+    MSG_TYPE_COMMAND,
+    MSG_TYPE_BIGDATA
+} Msg_Type_e;
+
+typedef enum {
     SAFE = 0,
     MOVED
-}Alarm_Level;
-typedef struct{
-    Module_ID_e src_module; //消息来源模块
-    Module_ID_e dst_module; //消息目标模块
-    uint32_t data_len; //消息数据长度
-    Msg_Type_e msg_type; //消息类型
-    uint8_t count;//消息被发送还没返回次数
-    void* data; //消息数据指针
-}Common_Msg_t;//通用的数据交换消息结构体，具体定义根据实际需求设计
-typedef struct {
-    Module_ID_e src_module; //消息来源模块
-    Module_ID_e dst_module; //消息目标模块
-    void* data_ptr;  // 指向 mmap 后的内存首地址
-    uint32_t total_len; // 总大小（如 5MB）
-    Msg_Type_e msg_type; //消息类型
-    int      fd;        // 原始文件句柄，用于释放
-} BigData_Msg_t;
-typedef void (*MsgHandler_t)(Common_Msg_t* msg); //消息处理函数指针类型定义
-typedef void (*MsgReleaseHandler_t)(Common_Msg_t* msg); //消息资源释放函数指针类型定义
+} Alarm_Level;
 
-typedef enum{
-    DEBUG = 0,//调试信息
-    INFO ,//程序运行信息
-    WARN ,//警告，有异常出现
-    ERROR //出现错误
-     
-}LOG_LEVEL;
-typedef struct{
+#ifdef MSG_ENABLE_PRIORITY
+typedef enum {
+    MSG_PRIORITY_LOW = 0,
+    MSG_PRIORITY_NORMAL,
+    MSG_PRIORITY_HIGH,
+    MSG_PRIORITY_URGENT
+} Msg_Priority_e;
+#endif
+
+typedef struct {
+    Module_ID_e src_module;
+    Module_ID_e dst_module;
+    uint32_t data_len;
+    Msg_Type_e msg_type;
+    uint8_t count;
+#ifdef MSG_ENABLE_PRIORITY
+    Msg_Priority_e priority;
+#endif
+    void *data;
+} Common_Msg_t;
+
+typedef struct {
+    void *data_ptr;
+    uint32_t total_len;
+    Msg_Type_e msg_type;
+    int fd;
+} BigData_Msg_t;
+
+typedef void (*MsgHandler_t)(Common_Msg_t *msg);
+typedef void (*MsgReleaseHandler_t)(Common_Msg_t *msg);
+
+typedef enum {
+    DEBUG = 0,
+    INFO,
+    WARN,
+    ERROR
+} LOG_LEVEL;
+
+typedef struct {
     LOG_LEVEL level;
     time_t timestamp;
     Module_ID_e module;
-    char content[64];//日志内容
-}Log_Msg_t;
-typedef struct{
-    uint8_t*    data;
-    uint32_t    len;
-    uint8_t     index;
-    time_t      timestamps;
-}Image_Data; //图像数据结构体定义，包含数据指针、数据长度和时间戳
+    char content[64];
+} Log_Msg_t;
 
-typedef struct{
+typedef struct {
+    uint8_t *data;
+    uint32_t len;
+    uint8_t index;
+    time_t timestamps;
+} Image_Data;
 
-}Log_Data; //日志数据结构体定义
+typedef struct {
+} Log_Data;
 
-typedef struct{
+typedef struct {
     Alarm_Level status;
-}Alarm_Data; //告警数据结构体定义
-/*声明一个待发送数据缓冲区*/
-/*
-typedef struct{
-    Image_Data *data; //数据内容
-    DataType type; //数据类型（如视频帧、告警信息等）
-    int status; //数据状态（如正在准备、准备好、正在发送等）
-    time_t timestamp; //数据生成的时间戳
-    pthread_mutex_t lock; //互斥锁，保护数据访问
-    pthread_cond_t cond; //条件变量，通知数据更新
-}Transfer_Buffer;
-*/
+} Alarm_Data;
 
-/*图像数据缓冲区*/
-/*
-typedef struct{
-    uint8_t* camera_data[2]; //双缓冲区，存储两帧图像数据
-    uint32_t frame_len[2]; //每帧图像数据的长度
-    int latest_index; //最新数据所在的索引
-    pthread_mutex_t lock; //互斥锁，保护数据访问
-    pthread_cond_t cond; //条件变量，通知数据更新
-}
-*/
-typedef struct{
-    Image_Data data[2]; //双缓冲区，存储两帧图像数据
-    int latest_index;//最新数据所在的索引
-    int status;/*状态位，0：数据正在准备
-                *-1:数据发送完毕，待更新
-                *1：数据已经准备好，待处理，待发送
-                *2：数据正在处理
-                *3：数据处理完毕，待发送
-                *4：数据正在发送
-                */
+typedef struct {
+    Image_Data data[2];
+    int latest_index;
+    int status;
     pthread_mutex_t lock;
-    pthread_cond_t  cond;
-}Camera_Udp_SharedBuffer;
-/*udp数据包的数据帧头定义*/
-typedef struct{
-	uint16_t magic;		//帧头标志
-	uint32_t frame_id;	//帧ID
-	uint16_t pkg_cnt;	//分包总数
-	uint16_t pkg_id;	//分包ID
-	uint16_t data_len;	//数据长度
-	uint32_t timestamp;	//时间戳
+    pthread_cond_t cond;
+} Camera_Udp_SharedBuffer;
+
+typedef struct {
+    uint16_t magic;
+    uint32_t frame_id;
+    uint16_t pkg_cnt;
+    uint16_t pkg_id;
+    uint16_t data_len;
+    uint32_t timestamp;
 } __attribute__((packed)) Frame_Header;
-//需定义一个消息队列结构体，包含消息内容和消息类型等信息
-//需定义一个环形缓冲区用来存储视频的告警发生前几帧数据，保证告警发生时可以将之前的几帧数据一起发送出去
-//需定义一个日志相关
-/*应用运行标志 running在main.c中定义  表示正在运行这个应用*/
+
 extern int running;
 extern Camera_Udp_SharedBuffer camera_udp_shared_buffer;
-/*通用消息收发模块函数声明*/
-//void msg_init(void);
-Common_Msg_t msg_make(Module_ID_e src, Module_ID_e dst, uint32_t len, Msg_Type_e type, void* data);
-void msg_send(Common_Msg_t* msg);
-//void msg_receive(Common_Msg_t* msg);
-void* msg_deliver_thread(void* arg);
-/*v4l2采集线程相关数据结构和函数声明*/
-void V4L2_msg_release_handler(Common_Msg_t* msg);
-/*udp发送线程相关数据结构和函数声明*/
-void udp_msg_handler(Common_Msg_t* msg);
-/*存储线程相关数据结构和函数声明*/
-void storage_msg_handler(Common_Msg_t* msg);
-/*告警线程相关数据结构和函数声明*/
-void alarm_msg_release_handler(Common_Msg_t* msg);
-void alarm_msg_handler(Common_Msg_t* msg);
-/*日志线程相关数据结构和函数声明*/
-void logger_msg_handler(Common_Msg_t* msg);
-void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content);
+
+void msg_init(void);
+Common_Msg_t msg_make(Module_ID_e src, Module_ID_e dst, uint32_t len, Msg_Type_e type, void *data);
+#ifdef MSG_ENABLE_PRIORITY
+Common_Msg_t msg_make_with_priority(Module_ID_e src, Module_ID_e dst, uint32_t len, Msg_Type_e type, Msg_Priority_e priority, void *data);
+void msg_set_priority(Common_Msg_t *msg, Msg_Priority_e priority);
+#endif
+int msg_send(Common_Msg_t *msg);
+int msg_receive(Common_Msg_t *msg);
+void msg_cleanup(void);
+void *msg_deliver_thread(void *arg);
+
+void V4L2_msg_release_handler(Common_Msg_t *msg);
+void udp_msg_handler(Common_Msg_t *msg);
+void storage_msg_handler(Common_Msg_t *msg);
+void alarm_msg_release_handler(Common_Msg_t *msg);
+void alarm_msg_handler(Common_Msg_t *msg);
+void logger_msg_handler(Common_Msg_t *msg);
+void log_make(Log_Msg_t *log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char *content);
+
 #ifdef __cplusplus
 }
 #endif
-#endif // __COMMON_H
+
+#endif

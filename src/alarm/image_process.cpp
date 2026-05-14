@@ -1,4 +1,5 @@
 #include "image_process.hpp"
+#include "msg_about.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>    // 专门用于 cvtColor, threshold, putText 等图像处理
 #include <opencv2/imgcodecs.hpp>  // 专门用于 imdecode 和 imencode (JPG 编解码)
@@ -56,8 +57,7 @@ void Move_Detectiom(Mat* input_frame)
         //发告警消息给存储模块
         if(alarm_data.status == SAFE){
             log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Detect Moved!");
-            process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
-            msg_send(&process_data.msg);
+            msg_dispatch(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
         }
         alarm_data.status = MOVED;
         //printf("MOVED!!\n");
@@ -65,13 +65,15 @@ void Move_Detectiom(Mat* input_frame)
     else{
         if(alarm_data.status == MOVED){
             log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, "Safe!");
-            process_data.msg = msg_make(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
-            msg_send(&process_data.msg);
+            msg_dispatch(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
         }
         alarm_data.status = SAFE;
     }
-    static Common_Msg_t msg = msg_make(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
-    msg_send(&msg);
+#ifdef MSG_ENABLE_PRIORITY
+    msg_dispatch_with_priority(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, MSG_PRIORITY_HIGH, &alarm_data);
+#else
+    msg_dispatch(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
+#endif
     current_frame_gray.copyTo(prev_frame_gray); // 更新上一帧的灰度图像
     
 }

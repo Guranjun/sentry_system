@@ -1,14 +1,18 @@
 #include "sqlite3.h"
 #include "common.h"
+#include "msg_about.h"
 #include "sqlite_about.h"
 //#include "cJSON.h"
 //#include <corecrt_search.h>
 //#include <cstdint>
 #include "log.h"
+#include <fcntl.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <time.h>
 #define DB_PATH "/mnt/flash/syslogs.db"
 #define MAX_DB_SIZE 16384   //应该设为16384
@@ -48,12 +52,26 @@ static void log_deinit(void)
     pthread_cond_destroy( &log_data_buf.cond);
 }
 
-void export_logs_on_demand(int count)
+void export_logs_on_demand(int cp_fd)
 {
     /*如果上位机发送命令要提交日志*/
     /*采用动态的数据链路
     *从数据库采集count条数据，然后再以json的格式组成一个字符串，调用udp/tcp上传日志
     */
+    BigData_Msg_t* bigdata_msg = malloc(sizeof(BigData_Msg_t));
+    int fd = cp_fd;
+    struct stat st;
+    fstat(fd, &st);
+    size_t file_size = st.st_size;
+    void* addr = mmap(NULL, file_size, PROT_READ, MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED) {
+        perror("mmap");
+        return ;
+    }
+    bigdata_msg->data_ptr = addr;
+    bigdata_msg->total_len = file_size;
+    bigdata_msg->fd = fd;
+    msg_dispatch(MODULE_ID_LOGGER, MODULE_ID_UDP, file_size, MSG_TYPE_BIGDATA, bigdata_msg);
 }
 
 void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content)
@@ -129,9 +147,25 @@ void logger_msg_handler(Common_Msg_t* msg)
             case MSG_TYPE_COMMAND:
                 //处理命令数据消息
                 break;
+            case MSG_TYPE_BIGDATA:{
+                BigData_Msg_t* b_msg = (BigData_Msg_t*)msg->data;
+                if(b_msg->data_ptr != MAP_FAILED){
+                    munmap(b_msg->data_ptr, b_msg->total_len);
+                }
+                if(b_msg->fd >= 0){
+                    close(b_msg->fd);
+                }
+                free(b_msg);
+                msg->data = NULL;
+                break;
+            }
             default:
                 break;
         }
+}
+void logger_msg_release_handler(Common_Msg_t* msg)
+{
+    return;
 }
 void logger_thread_wakeup(void)
 {
