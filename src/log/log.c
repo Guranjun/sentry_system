@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #define DB_PATH "/mnt/flash/syslogs.db"
+#define TMP_PATH "/tmp/log_cpy_syslogs.db"
 #define MAX_DB_SIZE 16384   //应该设为16384
 #define MAX_LOG_COUNT 50
 #define DELETE_LOG_NUM 512
