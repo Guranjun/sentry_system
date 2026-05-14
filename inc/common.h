@@ -124,9 +124,7 @@ Common_Msg_t msg_make_with_priority(Module_ID_e src, Module_ID_e dst, uint32_t l
 void msg_set_priority(Common_Msg_t *msg, Msg_Priority_e priority);
 #endif
 int msg_send(Common_Msg_t *msg);
-int msg_receive(Common_Msg_t *msg);
-void msg_cleanup(void);
-void *msg_deliver_thread(void *arg);
+
 
 void V4L2_msg_release_handler(Common_Msg_t *msg);
 void udp_msg_handler(Common_Msg_t *msg);
@@ -134,7 +132,7 @@ void storage_msg_handler(Common_Msg_t *msg);
 void alarm_msg_release_handler(Common_Msg_t *msg);
 void alarm_msg_handler(Common_Msg_t *msg);
 void logger_msg_handler(Common_Msg_t *msg);
-void log_make(Log_Msg_t *log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char *content);
+void log_make(Log_Msg_t *log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, const char *content);
 
 #ifdef __cplusplus
 }

@@ -224,7 +224,7 @@ int msg_receive(Common_Msg_t *msg)
 
 void msg_deliver_lock(void)
 {
-    msg_ensure_init();
+    //msg_ensure_init();
     pthread_mutex_lock(&msg_queue.lock);
 }
 

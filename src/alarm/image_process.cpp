@@ -1,15 +1,13 @@
 #include "image_process.hpp"
 #include "msg_about.h"
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgproc.hpp>    // 专门用于 cvtColor, threshold, putText 等图像处理
-#include <opencv2/imgcodecs.hpp>  // 专门用于 imdecode 和 imencode (JPG 编解码)
+
 using namespace std;
-using namespace cv2;
-static Mat pre_image_gray;
+using namespace cv;
+static Mat prev_frame_gray;
 Alarm_Data Move_Detect(Mat* input_frame)
 {
     //运动检测算法实现
-    static bool is_first_frame = false;
+    static bool is_first_frame = true;
     static Alarm_Data alarm_data;
     Mat current_frame_gray, frame_diff, thresh;
     // 将当前帧转换为灰度图像
@@ -33,7 +31,7 @@ Alarm_Data Move_Detect(Mat* input_frame)
     current_frame_gray.copyTo(prev_frame_gray); // 更新上一帧的灰度图像
     return alarm_data;
 }
-
+/*
 void Move_Detectiom(Mat* input_frame)
 {
     //static Mat prev_frame_gray; // 上一帧的灰度图像
@@ -76,7 +74,7 @@ void Move_Detectiom(Mat* input_frame)
 #endif
     current_frame_gray.copyTo(prev_frame_gray); // 更新上一帧的灰度图像
     
-}
+}*/
 bool alarm_data_diff(Alarm_Data data)
 {
     static Alarm_Data alarm_data;

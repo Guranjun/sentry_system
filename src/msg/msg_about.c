@@ -24,13 +24,11 @@ int msg_register_module(Module_ID_e module, MsgHandler_t handler, MsgReleaseHand
         return -1;
     }
 
-    msg_deliver_lock();
     memset(&msg_route_table[module], 0, sizeof(msg_route_table[module]));
     msg_route_table[module].mod_id = module;
     msg_route_table[module].handler = handler;
     msg_route_table[module].release_handler = release;
     msg_route_valid[module] = 1U;
-    msg_deliver_unlock();
 
     return 0;
 }

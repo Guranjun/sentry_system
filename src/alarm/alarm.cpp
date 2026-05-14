@@ -69,8 +69,9 @@ void* process_image_thread(void* arg)
         //Move_Detectiom(&img);
         alarm_data = Move_Detect(&img);
         if(alarm_data_diff(alarm_data)){
-            log_string = "Status changed to";
-            log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, string + to_string(alarm_data.status));
+            log_string = "Status changed to" + to_string(alarm_data.status);
+            const char* p = log_string.data();
+            log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, p);
             msg_dispatch(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
         }
 #ifdef MSG_ENABLE_PRIORITY
@@ -78,7 +79,7 @@ void* process_image_thread(void* arg)
 #else
         msg_dispatch(MODULE_ID_ALARM, MODULE_ID_STORAGE, sizeof(alarm_data), MSG_TYPE_ALARM, &alarm_data);
 #endif
-        current_frame_gray.copyTo(prev_frame_gray);
+        
     }
     return nullptr;
 }

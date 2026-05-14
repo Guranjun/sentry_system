@@ -1,8 +1,10 @@
 #include "sqlite_about.h"
-
-void DB_Init(sqlite3* db)
+#include "log.h"
+#define DB_PATH "/mnt/flash/syslogs.db"
+sqlite3* DB_Init(void)
 {
-    if(sqlite3_open(DB_PATH, db) != SQLITE_OK){
+    sqlite3* db = NULL;
+    if(sqlite3_open(DB_PATH, &db) != SQLITE_OK){
         fprintf(stderr, "Can't open the database:%s", sqlite3_errmsg(db));
         return;
     }
@@ -13,6 +15,7 @@ void DB_Init(sqlite3* db)
                       "module INTEGER,"
                       "content TEXT);";
     sqlite3_exec(db, sql, NULL, NULL, NULL);
+    return db;
 }
 uint8_t get_db_count(sqlite3* db, uint16_t* out_count)
 {  

@@ -14,15 +14,14 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
-#define DB_PATH "/mnt/flash/syslogs.db"
+#include <sys/mman.h>   
+#include <unistd.h> 
+
 #define TMP_PATH "/tmp/log_cpy_syslogs.db"
 #define MAX_DB_SIZE 16384   //应该设为16384
-#define MAX_LOG_COUNT 50
+
 #define DELETE_LOG_NUM 512
-typedef struct{
-    Log_Msg_t items[MAX_LOG_COUNT];
-    int count;
-}Log_Buffer_t;
+
 typedef struct{
     Log_Buffer_t Buffer_A;
     Log_Buffer_t Buffer_B;
@@ -75,7 +74,7 @@ void export_logs_on_demand(int cp_fd)
     msg_dispatch(MODULE_ID_LOGGER, MODULE_ID_UDP, file_size, MSG_TYPE_BIGDATA, bigdata_msg);
 }
 
-void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, char* content)
+void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, const char* content)
 {
     log_msg->level = level;
     log_msg->timestamp = timestamp;
@@ -85,7 +84,7 @@ void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e
 void* logger_process_thread(void* arg)
 {
     log_init();
-    DB_Init(log_data_buf.db);
+    log_data_buf.db = DB_Init();
     uint16_t db_sql_count;
     while(running){
         pthread_mutex_lock(&log_data_buf.lock);

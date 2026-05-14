@@ -16,7 +16,7 @@ typedef struct {
 void msg_deliver_lock(void);
 void msg_deliver_unlock(void);
 void msg_thread_wakeup(void);
-
+void *msg_deliver_thread(void *arg);
 #ifdef __cplusplus
 }
 #endif
