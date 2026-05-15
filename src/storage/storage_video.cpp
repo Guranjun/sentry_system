@@ -18,7 +18,7 @@
 #include <vector>
 using namespace std;
 using namespace cv;
-#define MAXSIZE 25
+#define MAXSIZE 50
 /*存储图像缓冲区*/
 static bool move_detected;
 typedef struct {
@@ -118,7 +118,7 @@ void* storage_video_thread(void* arg)
                     uint32_t len = storage_data.read_lens_ptr[i];
                     fwrite((*storage_data.read_ptr)[i].data(), 1, len, fp);
                 }
-                fflush(fp);
+                //fflush(fp);
             }
             if(!move_detected && post_record_count > 0){
                 post_record_count--;

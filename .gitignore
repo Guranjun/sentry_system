@@ -24,5 +24,6 @@ py_for_pc/venv_yolo/
 bin/
 *.db
 *.o
+*.mp4
 ### yolo ###
 yolov8n.pt

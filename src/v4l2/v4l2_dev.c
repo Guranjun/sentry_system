@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include <unistd.h>
 #include <stdint.h>
 
@@ -142,6 +143,9 @@ void *camera_capture_thread(void *arg)
 {
     char *dev_path = (char *)arg;
 	int write_index = 0;
+	struct timespec ts_now, ts_target;
+	clock_gettime(CLOCK_MONOTONIC, &ts_now);
+	ts_target = ts_now;
 	V4L2_Device cam;
 	v4l2_data_buffer_init();
 	V4l2_Init(dev_path, &cam);
@@ -171,24 +175,32 @@ void *camera_capture_thread(void *arg)
 		if(v4l2_data_buffer.taken_flag[write_index].counter == 0){
 			// 没有正在发送数据，更新latest_index
 			v4l2_data_buffer.latest_index = write_index;
-			Change_Image_Taken_Flag(write_index); //更新图像占用标志位和计数器
-			Change_Image_Taken_Flag(write_index);
-			Change_Image_Taken_Flag(write_index);
+			write_index = (write_index + 1) % V4L2_BUF_COUNT; // 切换到另一个缓冲区
+			pthread_mutex_unlock(&v4l2_data_buffer.lock);
+			Change_Image_Taken_Flag(v4l2_data_buffer.latest_index); //更新图像占用标志位和计数器
+			Change_Image_Taken_Flag(v4l2_data_buffer.latest_index);
 			msg_dispatch(MODULE_ID_V4L2, MODULE_ID_UDP, sizeof(Image_Data), MSG_TYPE_IMAGE, &v4l2_data_buffer.camera_data[v4l2_data_buffer.latest_index]);
 			msg_dispatch(MODULE_ID_V4L2, MODULE_ID_STORAGE, sizeof(Image_Data), MSG_TYPE_IMAGE, &v4l2_data_buffer.camera_data[v4l2_data_buffer.latest_index]);
 #ifdef MSG_ENABLE_PRIORITY
 			msg_dispatch_with_priority(MODULE_ID_V4L2, MODULE_ID_ALARM, sizeof(Image_Data), MSG_TYPE_IMAGE, MSG_PRIORITY_HIGH, &v4l2_data_buffer.camera_data[v4l2_data_buffer.latest_index]);
 #else
-			msg_dispatch(MODULE_ID_V4L2, MODULE_ID_ALARM, sizeof(Image_Data), MSG_TYPE_IMAGE, &v4l2_data_buffer.camera_data[v4l2_data_buffer.latest_index]);
+			clock_gettime(CLOCK_MONOTONIC, &ts_now);
+			if(ts_now.tv_sec > ts_target.tv_sec ||(ts_now.tv_sec == ts_target.tv_sec && ts_now.tv_nsec >= ts_target.tv_nsec)){
+				Change_Image_Taken_Flag(v4l2_data_buffer.latest_index);
+				msg_dispatch(MODULE_ID_V4L2, MODULE_ID_ALARM, sizeof(Image_Data), MSG_TYPE_IMAGE, &v4l2_data_buffer.camera_data[v4l2_data_buffer.latest_index]);
+				ts_target.tv_sec = ts_now.tv_sec + 1;
+				ts_target.tv_nsec = ts_now.tv_nsec;
+			}
+			
 #endif
-			write_index = (write_index + 1) % V4L2_BUF_COUNT; // 切换到另一个缓冲区
+			
 			//camera_udp_shared_buffer.status = 1; // 数据已经准备好，待处理，待发送
 		}
 		else{
 			// 正在发送数据，不更新latest_index
 			//printf("buffer is being sent, skipping update\n");
+			pthread_mutex_unlock(&v4l2_data_buffer.lock);
 		}
-		pthread_mutex_unlock(&v4l2_data_buffer.lock);
 		/*第三步逻辑实现*/
 		if(ioctl(cam.fd, VIDIOC_QBUF, &buf) < 0){
 			perror("QBUF failed");
