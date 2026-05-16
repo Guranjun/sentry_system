@@ -1,7 +1,7 @@
 #ifndef __COMMON_H
 #define __COMMON_H
 
-#include <cstdint>
+
 #include <stdbool.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -107,12 +107,12 @@ typedef struct {
 } Camera_Udp_SharedBuffer;
 
 typedef struct {
-    uint64_t timestamp;
-    uint32_t frame_id;
-    uint16_t magic;
-    uint16_t pkg_cnt;
-    uint16_t pkg_id;
-    uint16_t data_len;
+    uint16_t magic;		//帧头标志
+	uint32_t frame_id;	//帧ID
+	uint16_t pkg_cnt;	//分包总数
+	uint16_t pkg_id;	//分包ID
+	uint16_t data_len;	//数据长度
+	uint64_t timestamp;	//时间戳
     
 } __attribute__((packed)) Frame_Header;
 

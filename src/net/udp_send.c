@@ -109,6 +109,7 @@ static void Udp_Send_Frame(UDP_Send_Buffer *udp, uint8_t *send_data, uint32_t se
 
         send_packet_optimized(udp->Sock, &hdr, send_data + (i * CHUNK_SIZE), &udp->dest_addr);
     }
+    //printf("Sended!%d\n",udp->current_frame_id);
     udp->current_frame_id++; 
     //log_make(&udp_send_buffer.log_msg, INFO, gettime_us(), MODULE_ID_UDP, "A file uploaded!");
     //udp_send_buffer.msg = msg_make(MODULE_ID_UDP, MODULE_ID_LOGGER, sizeof(udp_send_buffer.log_msg), MSG_TYPE_LOG, &udp_send_buffer.log_msg);

@@ -7,7 +7,7 @@
 #include "common.h"
 #include "msg_about.h"
 #include "storage_video.hpp"
-//#include "ffmpeg_muxer.h"
+#include "ffmpeg_muxer.hpp"
 #include "my_time.h"
 #include <stdint.h>
 #include <string.h>
@@ -19,6 +19,8 @@
 using namespace std;
 using namespace cv;
 #define MAXSIZE 50
+#define STORE_IN_DAT 0
+#define FPS 10
 /*存储图像缓冲区*/
 static bool move_detected;
 typedef struct {
@@ -97,10 +99,44 @@ void* storage_video_thread(void* arg)
         storage_data.data_ready = false;
         pthread_mutex_unlock(&storage_data.lock);
         if(should_save){
+#if STORE_IN_DAT == 0
             if(!is_recording){
                 char filename[64];
                 uint64_t raw_time = storage_data.read_ts_ptr[0];
-                time_t file_name = raw_time/1000000;
+                time_t file_name = (time_t)raw_time/1000000;
+                struct tm* timeinfo = localtime(&file_name);
+                strftime(filename, sizeof(filename), "/mnt/sdcard/rec_%Y%m%d_%H%M%S.avi", timeinfo);
+                if(ffmpeg_muxer_init(filename, FRAME_WIDTH, FRAME_HIGH, FPS) >= 0){
+                    is_recording = true;
+                    printf("%s is inited!\n", filename);
+                    log_make(&storage_data.log_msg, INFO, gettime_us(), MODULE_ID_STORAGE, "Start to store");
+                    msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
+                }
+                else{
+                    log_make(&storage_data.log_msg, INFO, gettime_us(), MODULE_ID_STORAGE, "Create file failed!");
+                    msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
+                }
+            }
+            if(is_recording){
+                for(int i = 0; i < MAXSIZE; i++){
+                    ffmpeg_muxer_write((*storage_data.read_ptr)[i].data(), storage_data.read_lens_ptr[i], storage_data.read_ts_ptr[i]);
+                }
+            }
+            if(!move_detected && post_record_count > 0){
+                post_record_count--;
+                if(post_record_count == 0){
+                    ffmpeg_muxer_close();
+                    is_recording = false;
+                    //写个日志
+                    log_make(&storage_data.log_msg, INFO, gettime_us(), MODULE_ID_STORAGE, "Stored");
+                    msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
+                }
+            } 
+#else
+            if(!is_recording){
+                char filename[64];
+                uint64_t raw_time = storage_data.read_ts_ptr[0];
+                time_t file_name = (time_t)raw_time/1000000;
                 struct tm *timeinfo = localtime(&file_name);
                 strftime(filename, sizeof(filename), "/mnt/sdcard/rec_%Y%m%d_%H%M%S.dat", timeinfo);
                 fp = fopen(filename, "wb");
@@ -134,6 +170,7 @@ void* storage_video_thread(void* arg)
                     msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
                 }
             } 
+#endif
         }
         else{
             //如果还在录且fp没关，把fp关了
@@ -146,6 +183,8 @@ void* storage_video_thread(void* arg)
                 msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
             }
         }
+
+
     }
     if(fp)
         fclose(fp);
@@ -211,10 +250,12 @@ void storage_msg_handler(Common_Msg_t* msg)
         case MSG_TYPE_COMMAND:
             //处理命令数据消息
             break;
+        case MSG_TYPE_BIGDATA:
+            //处理大数据消息
+            break;
         default:
             break;
     }
-
 }
 void storage_thread_wakeup(void)
 {
