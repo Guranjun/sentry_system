@@ -8,7 +8,7 @@
 #include "msg_about.h"
 #include "storage_video.hpp"
 //#include "ffmpeg_muxer.h"
-
+#include "my_time.h"
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
@@ -25,20 +25,20 @@ typedef struct {
     // A 块和 B 块分别作为写入和读取的交换空间
     vector<uint8_t> buffer_A[MAXSIZE];
     uint32_t lens_A[MAXSIZE];
-    time_t ts_A[MAXSIZE];
+    uint64_t ts_A[MAXSIZE];
 
     vector<uint8_t> buffer_B[MAXSIZE];
     uint32_t lens_B[MAXSIZE];
-    time_t ts_B[MAXSIZE];
+    uint64_t ts_B[MAXSIZE];
 
     // 指针切换：指向当前正在“写”的块和“待读”的块
     vector<uint8_t> (*write_ptr)[MAXSIZE];
     uint32_t *write_lens_ptr;
-    time_t *write_ts_ptr;
+    uint64_t *write_ts_ptr;
 
     vector<uint8_t> (*read_ptr)[MAXSIZE];
     uint32_t *read_lens_ptr;
-    time_t *read_ts_ptr;
+    uint64_t *read_ts_ptr;
     Log_Msg_t log_msg;
     int write_idx; 
     bool data_ready; // 标志位：读块是否装满了数据待存
@@ -99,14 +99,15 @@ void* storage_video_thread(void* arg)
         if(should_save){
             if(!is_recording){
                 char filename[64];
-                time_t raw_time = storage_data.read_ts_ptr[0];
-                struct tm *timeinfo = localtime(&raw_time);
+                uint64_t raw_time = storage_data.read_ts_ptr[0];
+                time_t file_name = raw_time/1000000;
+                struct tm *timeinfo = localtime(&file_name);
                 strftime(filename, sizeof(filename), "/mnt/sdcard/rec_%Y%m%d_%H%M%S.dat", timeinfo);
                 fp = fopen(filename, "wb");
                 if(fp){
                     is_recording = true;
                     //写个日志
-                    log_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "Start to store");
+                    log_make(&storage_data.log_msg, INFO, gettime_us(), MODULE_ID_STORAGE, "Start to store");
                     msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
                 }
                 else{
@@ -129,7 +130,7 @@ void* storage_video_thread(void* arg)
                     }
                     is_recording = false;
                     //写个日志
-                    log_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "Stored");
+                    log_make(&storage_data.log_msg, INFO, gettime_us(), MODULE_ID_STORAGE, "Stored");
                     msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
                 }
             } 
@@ -141,7 +142,7 @@ void* storage_video_thread(void* arg)
                 fp = nullptr;
                 is_recording = false;
                 //写个日志
-                log_make(&storage_data.log_msg, INFO, time(NULL), MODULE_ID_STORAGE, "File closed");
+                log_make(&storage_data.log_msg, INFO, gettime_us(), MODULE_ID_STORAGE, "File closed");
                 msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
             }
         }
@@ -171,7 +172,7 @@ void storage_msg_handler(Common_Msg_t* msg)
                 if(storage_data.data_ready){
                     storage_data.write_idx = 0;
                     //写个日志
-                    log_make(&storage_data.log_msg, ERROR, time(NULL), MODULE_ID_STORAGE, "Failed");
+                    log_make(&storage_data.log_msg, ERROR, gettime_us(), MODULE_ID_STORAGE, "Failed");
                     msg_dispatch(MODULE_ID_STORAGE, MODULE_ID_LOGGER, sizeof(storage_data.log_msg), MSG_TYPE_LOG, &storage_data.log_msg);
                 }
                 else{

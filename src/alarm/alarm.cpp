@@ -2,6 +2,7 @@
 #include "image_process.hpp"
 #include "common.h"
 #include "msg_about.h"
+#include "my_time.h"
 #include <cstdint>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>    // 专门用于 cvtColor, threshold, putText 等图像处理
@@ -71,7 +72,7 @@ void* process_image_thread(void* arg)
         if(alarm_data_diff(alarm_data)){
             log_string = "Status changed to" + to_string(alarm_data.status);
             const char* p = log_string.data();
-            log_make(&process_data.log_msg, INFO, time(NULL), MODULE_ID_ALARM, p);
+            log_make(&process_data.log_msg, INFO, gettime_us(), MODULE_ID_ALARM, p);
             msg_dispatch(MODULE_ID_ALARM, MODULE_ID_LOGGER, sizeof(process_data.log_msg), MSG_TYPE_LOG, &process_data.log_msg);
         }
 #ifdef MSG_ENABLE_PRIORITY

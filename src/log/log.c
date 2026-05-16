@@ -74,7 +74,7 @@ void export_logs_on_demand(int cp_fd)
     msg_dispatch(MODULE_ID_LOGGER, MODULE_ID_UDP, file_size, MSG_TYPE_BIGDATA, bigdata_msg);
 }
 
-void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, const char* content)
+void log_make(Log_Msg_t* log_msg, LOG_LEVEL level, uint64_t timestamp, Module_ID_e module, const char* content)
 {
     log_msg->level = level;
     log_msg->timestamp = timestamp;
@@ -93,7 +93,7 @@ void* logger_process_thread(void* arg)
             */
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += 5;
+            ts.tv_sec += 10;
             pthread_cond_timedwait(&log_data_buf.cond, &log_data_buf.lock, &ts);
             if(log_data_buf.input_ptr->count > 0){
                 break;
@@ -136,7 +136,7 @@ void logger_msg_handler(Common_Msg_t* msg)
                 pthread_mutex_lock(&log_data_buf.lock);
                 memcpy(&log_data_buf.input_ptr->items[log_data_buf.input_ptr->count] , data , sizeof(Log_Msg_t));
                 /*处理逻辑还未完成*/
-                log_data_buf.input_ptr->items[log_data_buf.input_ptr->count].timestamp = time(NULL);
+                log_data_buf.input_ptr->items[log_data_buf.input_ptr->count].timestamp = data->timestamp;
                 log_data_buf.input_ptr->count++;
                 if(log_data_buf.input_ptr->count > 30){
                     pthread_cond_signal(&log_data_buf.cond);

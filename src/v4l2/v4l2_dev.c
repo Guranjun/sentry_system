@@ -1,7 +1,7 @@
 #include "v4l2_dev.h"
 #include "common.h"
 #include "msg_about.h"
-
+#include "my_time.h"
 #include <complex.h>
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
@@ -169,7 +169,7 @@ void *camera_capture_thread(void *arg)
 		/*将采集到的数据复制到共享缓冲区*/
 		memcpy(v4l2_data_buffer.camera_data[write_index].data, cam.mmpaddr[buf.index], buf.bytesused);
 		v4l2_data_buffer.camera_data[write_index].len = buf.bytesused;
-		v4l2_data_buffer.camera_data[write_index].timestamps = time(NULL);
+		v4l2_data_buffer.camera_data[write_index].timestamps = gettime_us();
 		/*第二步逻辑实现*/
 		pthread_mutex_lock(&v4l2_data_buffer.lock);
 		if(v4l2_data_buffer.taken_flag[write_index].counter == 0){

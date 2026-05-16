@@ -16,7 +16,7 @@
 #include <pthread.h>    // 必须包含，用于互斥锁和条件变量
 #include "common.h"     // 包含共享缓冲区结构体定义
 #include "udp_send.h"   // 包含 Udp_Config 和 Frame_Header 的定义
-
+#include "my_time.h"
 
 typedef struct{
 	int Sock;			//UDP套接字
@@ -90,7 +90,7 @@ static void Udp_Send_Frame(UDP_Send_Buffer *udp, uint8_t *send_data, uint32_t se
 {
     const int CHUNK_SIZE = 1400; // 避开以太网 MTU 限制
     uint16_t total_pkgs = (send_len + CHUNK_SIZE - 1) / CHUNK_SIZE;
-    uint32_t ts = (uint32_t)time(NULL); 
+    uint64_t ts = (uint64_t)gettime_us(); 
 
     for (uint16_t i = 0; i < total_pkgs; i++) {
         if(!running){
@@ -110,7 +110,7 @@ static void Udp_Send_Frame(UDP_Send_Buffer *udp, uint8_t *send_data, uint32_t se
         send_packet_optimized(udp->Sock, &hdr, send_data + (i * CHUNK_SIZE), &udp->dest_addr);
     }
     udp->current_frame_id++; 
-    //log_make(&udp_send_buffer.log_msg, INFO, time(NULL), MODULE_ID_UDP, "A file uploaded!");
+    //log_make(&udp_send_buffer.log_msg, INFO, gettime_us(), MODULE_ID_UDP, "A file uploaded!");
     //udp_send_buffer.msg = msg_make(MODULE_ID_UDP, MODULE_ID_LOGGER, sizeof(udp_send_buffer.log_msg), MSG_TYPE_LOG, &udp_send_buffer.log_msg);
     //msg_send(&udp_send_buffer.msg);
 }
