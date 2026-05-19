@@ -1,6 +1,7 @@
 #ifndef __COMMON_H
 #define __COMMON_H
 
+
 #include <stdbool.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -78,16 +79,16 @@ typedef enum {
 
 typedef struct {
     LOG_LEVEL level;
-    time_t timestamp;
+    uint64_t timestamp;
     Module_ID_e module;
     char content[64];
 } Log_Msg_t;
 
 typedef struct {
-    uint8_t *data;
+    uint64_t timestamps;
     uint32_t len;
+    uint8_t *data;
     uint8_t index;
-    time_t timestamps;
 } Image_Data;
 
 typedef struct {
@@ -106,12 +107,13 @@ typedef struct {
 } Camera_Udp_SharedBuffer;
 
 typedef struct {
-    uint16_t magic;
-    uint32_t frame_id;
-    uint16_t pkg_cnt;
-    uint16_t pkg_id;
-    uint16_t data_len;
-    uint32_t timestamp;
+    uint16_t magic;		//帧头标志
+	uint32_t frame_id;	//帧ID
+	uint16_t pkg_cnt;	//分包总数
+	uint16_t pkg_id;	//分包ID
+	uint16_t data_len;	//数据长度
+	uint64_t timestamp;	//时间戳
+    
 } __attribute__((packed)) Frame_Header;
 
 extern int running;
@@ -132,7 +134,7 @@ void storage_msg_handler(Common_Msg_t *msg);
 void alarm_msg_release_handler(Common_Msg_t *msg);
 void alarm_msg_handler(Common_Msg_t *msg);
 void logger_msg_handler(Common_Msg_t *msg);
-void log_make(Log_Msg_t *log_msg, LOG_LEVEL level, time_t timestamp, Module_ID_e module, const char *content);
+void log_make(Log_Msg_t *log_msg, LOG_LEVEL level, uint64_t timestamp, Module_ID_e module, const char *content);
 
 #ifdef __cplusplus
 }

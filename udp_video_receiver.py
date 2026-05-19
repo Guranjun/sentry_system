@@ -7,7 +7,7 @@ import time
 # --- 配置 ---
 UDP_IP = "0.0.0.0"
 UDP_PORT = 8080
-HEADER_FMT = "<H I H H H I"
+HEADER_FMT = "<H I H H H Q"
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
 MAGIC_NUMBER = 0xABCD
 

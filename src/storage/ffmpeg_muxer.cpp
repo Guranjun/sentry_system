@@ -1,11 +1,11 @@
-#include "ffmpeg_muxer.h"
+#include "ffmpeg_muxer.hpp"
 
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
 #include <libavutil/mathematics.h>
 }
-
+using namespace std;
 typedef struct {
     AVFormatContext* fmt_ctx;
     AVStream* video_st;
@@ -20,12 +20,22 @@ int ffmpeg_muxer_init(const char* filename, int width, int height, int fps) {
 
     // 1. 初始化封装上下文
     if (avformat_alloc_output_context2(&g_ctx.fmt_ctx, NULL, NULL, filename) < 0) {
+        if (g_ctx.fmt_ctx) {
+            avformat_free_context(g_ctx.fmt_ctx);
+            g_ctx.fmt_ctx = NULL;
+        }
         return -2;
     }
 
     // 2. 创建视频流
     g_ctx.video_st = avformat_new_stream(g_ctx.fmt_ctx, NULL);
-    if (!g_ctx.video_st) return -3;
+    if (!g_ctx.video_st){
+        if (g_ctx.fmt_ctx) {
+            avformat_free_context(g_ctx.fmt_ctx);
+            g_ctx.fmt_ctx = NULL;
+        }
+        return -3;
+    }
 
     // 3. 配置流参数 (MJPEG 格式)
     AVCodecParameters* par = g_ctx.video_st->codecpar;
@@ -41,12 +51,20 @@ int ffmpeg_muxer_init(const char* filename, int width, int height, int fps) {
     // 4. 打开文件
     if (!(g_ctx.fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
         if (avio_open(&g_ctx.fmt_ctx->pb, filename, AVIO_FLAG_WRITE) < 0) {
+            if (g_ctx.fmt_ctx) {
+                avformat_free_context(g_ctx.fmt_ctx);
+                g_ctx.fmt_ctx = NULL;
+            }
             return -4;
         }
     }
 
     // 5. 写文件头
     if (avformat_write_header(g_ctx.fmt_ctx, NULL) < 0) {
+        if (g_ctx.fmt_ctx) {
+            avformat_free_context(g_ctx.fmt_ctx);
+            g_ctx.fmt_ctx = NULL;
+        }
         return -5;
     }
 
@@ -55,7 +73,7 @@ int ffmpeg_muxer_init(const char* filename, int width, int height, int fps) {
     return 0;
 }
 
-int ffmpeg_muxer_write(uint8_t* data, size_t len, int64_t timestamp_us) {
+int ffmpeg_muxer_write(uint8_t* data, size_t len, uint64_t timestamp_us) {
     if (!g_ctx.is_init || !data) return -1;
 
     // 如果是第一帧，记录基准时间
