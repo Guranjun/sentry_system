@@ -26,6 +26,7 @@ typedef struct {
     uint32_t current_frame_id;
     bool connected;
     bool is_sending;
+    uint8_t *big_data_addr;
     uint8_t *send_buf;
     uint32_t send_buf_len;
     uint32_t send_buf_capacity;
@@ -85,7 +86,7 @@ static int Tcp_Init(Tcp_Data_Buffer *tcp_config, const char *ip, uint16_t port)
     tcp_config->send_buf_capacity = TCP_SEND_BUFFER_INIT_SIZE;
     tcp_config->send_buf = (uint8_t *)malloc(tcp_config->send_buf_capacity);
     tcp_config->send_buf_len = 0;
-
+    tcp_config->big_data_addr = NULL;
     if (tcp_config->send_buf == NULL) {
         perror("tcp send buffer malloc");
         return -1;
@@ -286,7 +287,11 @@ void tcp_msg_handler(Common_Msg_t *msg)
         case MSG_TYPE_ALARM:
         case MSG_TYPE_LOG:
         case MSG_TYPE_COMMAND:
-        case MSG_TYPE_BIGDATA:
+        case MSG_TYPE_BIGDATA:{
+            //这里是大数据文件发送相关操作
+            
+            break;
+        }
         default:
             break;
     }
