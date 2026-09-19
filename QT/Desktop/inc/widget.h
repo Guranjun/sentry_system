@@ -2,36 +2,38 @@
 #define WIDGET_H
 
 #include <QWidget>
-#include <QThread>
-#include "UdpReceiverWorker.h"
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class Widget;
-}
-QT_END_NAMESPACE
 
+class QStackedWidget;
+class QButtonGroup;
+class VideoPage;
+class FileManagePage;
+class LocalBrowsePage;
+class TcpControlWorker;
+
+// 主窗口：顶部导航栏(实时视频 / 远程文件管理 / 本地历史查看) + 子页面堆栈。
+// 持有共享的 TcpControlWorker(异步事件驱动，主线程)，并注入文件管理页。
 class Widget : public QWidget
 {
     Q_OBJECT
-
 public:
     explicit Widget(QWidget *parent = nullptr);
     ~Widget() override;
-signals:
-    void RequestOpenUdp();
-    void RequestCloseUdp();
-private slots:
-    void on_btnOpen_Clicked();
-    void on_btnClose_Clicked();
 
-    void on_UdpDataReceived(const QByteArray &data);
-    void on_UdpErrorOccurred(const QString &msg);
+private slots:
+    void onNavChanged(int index);
 
 private:
-    Ui::Widget *ui;
-    QThread *m_UdpReceiveThread = nullptr;
-    UdpReceiverWorker *m_udpWorker = nullptr;
+    QButtonGroup *m_navGroup = nullptr;
+    QStackedWidget *m_stack = nullptr;
 
-    void initNetWork();
+    VideoPage *m_videoPage = nullptr;
+    FileManagePage *m_filePage = nullptr;
+    LocalBrowsePage *m_localPage = nullptr;
+
+    TcpControlWorker *m_tcpWorker = nullptr;
+    QString m_saveDir;
+
+    void buildUi();
 };
+
 #endif // WIDGET_H

@@ -9,8 +9,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network Core)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Core)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network Core Sql)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Core Sql)
 set(INCLUDE_DIR ${CMAKE_SOURCE_DIR}/inc)
 set(SRC_DIR     ${CMAKE_SOURCE_DIR}/src)
 set(UI_DIR      ${CMAKE_SOURCE_DIR}/ui)
@@ -42,11 +42,6 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(Desktop
         MANUAL_FINALIZATION
         ${ALL_PROJECT_FILES}
-        inc/TcpControlWorker.h
-        src/net/Tcp_ControlWorker.cpp
-        inc/net_shared.h
-        inc/jsonParseCreate.h
-
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Desktop APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -69,7 +64,8 @@ endif()
 target_link_libraries(Desktop PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Network)
+    Qt${QT_VERSION_MAJOR}::Network
+    Qt${QT_VERSION_MAJOR}::Sql)
 set_target_properties(Desktop PROPERTIES
     AUTOUIC_SEARCH_PATHS "${CMAKE_SOURCE_DIR}/ui"
 )
